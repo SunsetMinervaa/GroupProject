@@ -7,6 +7,7 @@ A comprehensive project for analyzing translation strategies in game localizatio
 - [Project Overview](#project-overview)
 - [Quick Start](#quick-start)
 - [Project Structure](#project-structure)
+- [Corpus Overview](#corpus-overview)
 - [Scripts Guide](#scripts-guide)
 - [Analysis Guide](#analysis-guide)
 - [Visualization Guide](#visualization-guide)
@@ -127,6 +128,85 @@ embeddings-main/
   "translated_text": "Re-translated version"
 }
 ```
+
+---
+
+## Corpus Overview
+
+### Dataset: Hollow Knight: Silksong Translation Corpus
+
+This project uses a curated corpus of translation triples from **Hollow Knight: Silksong**, an indie action-adventure game known for its poetic narrative style and rich world-building.
+
+### Corpus Statistics
+
+- **Total Records**: 5,394 translation triples
+- **Source Language**: English
+- **Target Language**: Chinese (Simplified)
+- **Text Types**: Dialogue, narration, item descriptions, character interactions, and poetic verses
+
+### Data Fields
+
+Each record in `cleaned.json` contains three text fields:
+
+1. **`original_en_text`**: The original English source text from the game
+   - Contains game dialogue, narrative text, character speeches, and poetic descriptions
+   - HTML tags have been removed for clean text analysis
+
+2. **`original_zh_text`**: The official Chinese translation (domesticated translation)
+   - Published by the game's official localization team
+   - Represents a **domestication strategy** - adapting the text to Chinese cultural and linguistic norms
+   - Focuses on naturalness and readability for Chinese players
+
+3. **`translated_text`**: A re-translated version (foreignized translation)
+   - Created as an alternative translation, likely more literal
+   - Represents a **foreignization strategy** - preserving source language features
+   - May retain more of the original English structure and expressions
+
+### Corpus Characteristics
+
+**Game Genre**: Dark fantasy, metroidvania  
+**Narrative Style**: Poetic, metaphorical, atmospheric  
+**Translation Challenges**:
+- Proper nouns (character names, place names like "Pharloom")
+- Poetic and metaphorical language
+- Cultural references and idioms
+- Game-specific terminology
+
+### Example Record
+
+```json
+{
+  "original_en_text": "Pilgrim You are blessed to walk the foundations of Pharloom. Humble yourself before the shells of those who gave their lives to hold our kingdom's weight.",
+  "original_zh_text": "朝圣者 行走于纺络根基是你的殊荣。在这些为王国献出生命者的躯壳前，应保持谦卑。",
+  "translated_text": "朝圣者 您很幸运能够行走在法鲁的基础上。在那些为支撑我们王国的重量而献出生命的人的躯壳面前谦卑自己。"
+}
+```
+
+### Research Applications
+
+This corpus is ideal for studying:
+
+1. **Translation Strategy Analysis**: Compare domestication vs. foreignization approaches
+2. **Semantic Fidelity**: Measure how well each translation preserves the original meaning
+3. **Cultural Adaptation**: Analyze how cultural elements are handled in different translation strategies
+4. **Game Localization**: Understand translation practices specific to video game narratives
+5. **Literary Translation**: Study translation of poetic and metaphorical language
+
+### Data Preprocessing
+
+The corpus has been preprocessed:
+- HTML tags removed
+- Text encoding normalized to UTF-8
+- Empty entries filtered out
+- Ready for direct use in analysis scripts
+
+### Usage
+
+The corpus is automatically loaded by analysis scripts:
+- `02_similarity_calculation_2.py` - Analyzes semantic differences
+- `03_semantic_search_2.py` - Semantic search across translations
+- `04_text_clustering_visualization_2.py` - Visualizes translation strategies
+- `05_style_classifier.py` - Trains classifier on translation styles
 
 ---
 

@@ -1,0 +1,22 @@
+================================================================================
+Classification Report
+================================================================================
+
+Timestamp: 2025-12-02T21:35:44.946502
+Total samples: 400
+Accuracy: 0.8275
+
+Confusion Matrix:
+                     Predicted
+                     Domesticated    Foreignized    
+Actual Domesticated                169              31
+      Foreignized                  38             162
+
+              precision    recall  f1-score   support
+
+Domesticated     0.8164    0.8450    0.8305       200
+ Foreignized     0.8394    0.8100    0.8244       200
+
+    accuracy                         0.8275       400
+   macro avg     0.8279    0.8275    0.8274       400
+weighted avg     0.8279    0.8275    0.8274       400
