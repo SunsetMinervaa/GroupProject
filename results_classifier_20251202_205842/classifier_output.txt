@@ -1,0 +1,35 @@
+================================================================================
+Translation Style Classifier based on Qwen3-Embedding
+Task: distinguish 'Domesticated' vs 'Foreignized' translations
+================================================================================
+
+Results will be saved to: results_classifier_20251202_205842/
+
+[1/4] Loading data from: cleaned.json ...
+  Number of original triples: 5394
+  Valid Chinese translation entries: 10788
+
+Dataset split: train=1600 samples, test=400 samples
+
+Loading Qwen3-Embedding model...
+================================================================================
+Model Configuration Information
+================================================================================
+Model Name: Qwen/Qwen3-Embedding-4B
+Parameters: 4B
+Model Size: ~8GB
+Memory Required: 8-10GB
+C-MTEB Chinese Score: 72.27
+MTEB Multilingual Score: 69.45
+Description: Medium size, excellent performance, suitable for most users
+================================================================================
+Using device: cpu
+🚀 Using ModelScope mirror to download model: Qwen/Qwen3-Embedding-4B
+   (Faster for users in China, usually completes in 1-3 minutes)
+Downloading Model from https://www.modelscope.cn to directory: C:\Users\34146\.cache\modelscope\hub\models\Qwen\Qwen3-Embedding-4B
+✅ Model download complete: C:\Users\34146\.cache\modelscope\hub\models\Qwen\Qwen3-Embedding-4B
+✅ Model loaded successfully!
+
+Using batch_size=16 for encoding
+
+[2/4] Generating text embeddings ...

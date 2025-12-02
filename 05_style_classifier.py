@@ -179,27 +179,29 @@ def main():
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     results_dir = f"results_classifier_{timestamp}"
     os.makedirs(results_dir, exist_ok=True)
-    
+
     # Setup file to save all output
     output_file = os.path.join(results_dir, "classifier_output.txt")
     log_file = open(output_file, "w", encoding="utf-8")
-    
+
     # Custom print function that writes to both console and file
     original_print = print
+
     def print_and_log(*args, **kwargs):
         # Remove 'file' from kwargs if present, we'll set it explicitly
-        kwargs_console = {k: v for k, v in kwargs.items() if k != 'file'}
+        kwargs_console = {k: v for k, v in kwargs.items() if k != "file"}
         kwargs_file = kwargs_console.copy()
-        kwargs_file['file'] = log_file
-        
+        kwargs_file["file"] = log_file
+
         original_print(*args, **kwargs_console)
         original_print(*args, **kwargs_file)
         log_file.flush()
-    
+
     # Replace print temporarily
     import builtins
+
     builtins.print = print_and_log
-    
+
     try:
         print("=" * 80)
         print("Translation Style Classifier based on Qwen3-Embedding")
@@ -268,9 +270,10 @@ def main():
         print(f"\n[5/5] Saving classifier to: {model_save_path} ...")
         joblib.dump(clf, model_save_path)
         print(f"  ✓ Classifier saved successfully!")
-        
+
         # Save classification report
         from save_results_helper import save_classification_report
+
         y_pred = clf.predict(X_test_emb)
         report_file = os.path.join(results_dir, "classification_report.txt")
         save_classification_report(y_test, y_pred, output_file=report_file)
@@ -282,12 +285,7 @@ def main():
 
         # 6. Enter interactive mode
         interactive_classification(model, clf)
-        
-    finally:
-        # Restore original print
-        builtins.print = original_print
-        log_file.close()
-        
+
     finally:
         # Restore original print
         builtins.print = original_print
