@@ -13,6 +13,9 @@ from sentence_transformers import SentenceTransformer, util
 import numpy as np
 import json
 import random
+import os
+import sys
+from datetime import datetime
 import config  # Import configuration file
 
 
@@ -301,134 +304,201 @@ def categorize_by_length(triples, results):
 
 
 def main():
-    print("=" * 80)
-    print("Game Localization Translation Strategy Analysis: Official vs Re-translation")
-    print("Data Source: Hollow Knight: Silksong")
-    print("=" * 80)
+    # Create results directory with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    results_dir = f"results_similarity_{timestamp}"
+    os.makedirs(results_dir, exist_ok=True)
 
-    # 1. Load model
-    print("\n[1/5] Loading model...")
-    config.print_model_info()
-    print()
+    # Setup file to save all output
+    output_file = os.path.join(results_dir, "analysis_output.txt")
+    log_file = open(output_file, "w", encoding="utf-8")
 
-    model = config.load_model(
-        device="cpu"
-    )  # Use CPU, change to 'cuda' if GPU available
+    # Custom print function that writes to both console and file
+    original_print = print
 
-    # 2. Load data
-    print("\n[2/5] Loading translation data...")
-    # Analyze 100 samples first, remove sample_size parameter to analyze all
-    triples = load_translation_data("cleaned.json", sample_size=100)
-    chinese_anchors = create_chinese_anchors()
+    def print_and_log(*args, **kwargs):
+        # Remove 'file' from kwargs if present, we'll set it explicitly
+        kwargs_console = {k: v for k, v in kwargs.items() if k != "file"}
+        kwargs_file = kwargs_console.copy()
+        kwargs_file["file"] = log_file
 
-    print(f"  Loaded {len(triples)} translation pairs")
-    print(f"  Loaded {len(chinese_anchors)} Chinese common expression anchors")
+        original_print(*args, **kwargs_console)
+        original_print(*args, **kwargs_file)
+        log_file.flush()  # Ensure immediate write
 
-    # 3. Analyze translation pairs
-    print("\n[3/5] Analyzing translation pairs...")
-    print("\n" + "▼" * 80)
+    # Replace print temporarily
+    import builtins
 
-    results = []
-    display_count = 10  # Only show first 10 detailed results
+    builtins.print = print_and_log
 
-    for i, triple in enumerate(triples, 1):
-        # Analyze a single triple
-        result = analyze_translation_triple(model, triple, chinese_anchors)
-        results.append(result)
-
-        # Only show first few detailed results
-        if i <= display_count:
-            print_triple_analysis(triple, result, index=i)
-
-        # Progress indicator
-        if i % 20 == 0:
-            print(f"\n  Progress: {i}/{len(triples)}")
-
-    if len(triples) > display_count:
-        print(f"\n  ... Omitting {len(triples) - display_count} detailed results ...")
-
-    print("\n" + "▲" * 80)
-
-    # 4. Batch statistical summary
-    print("\n[4/5] Generating statistical summary...")
-    print_batch_summary(triples, results)
-
-    # Statistics by length category
-    categorize_by_length(triples, results)
-
-    # 5. Key findings
-    print(f"\n[5/5] Key Findings and Conclusions")
-    print(f"{'=' * 80}")
-
-    avg_strategy_diff = np.mean([r["strategy_difference"] for r in results])
-    avg_inter_sim = np.mean([r["inter_translation_similarity"] for r in results])
-
-    print("\nGame Localization Translation Analysis Conclusions:")
-
-    if avg_strategy_diff > 0.05:
+    try:
+        print("=" * 80)
         print(
-            f"  Re-translation is overall closer to English source (diff: {avg_strategy_diff:+.4f})"
+            "Game Localization Translation Strategy Analysis: Official vs Re-translation"
         )
-        print("  -> Re-translation may use more foreignization strategy (more literal)")
-    elif avg_strategy_diff < -0.05:
-        print(
-            f"  Official translation is overall closer to English source (diff: {avg_strategy_diff:+.4f})"
-        )
-        print(
-            "  -> Official translation may focus more on semantic accuracy than localization"
-        )
-    else:
-        print(
-            f"  Both strategies have similar semantic similarity (diff: {avg_strategy_diff:+.4f})"
-        )
+        print("Data Source: Hollow Knight: Silksong")
+        print("=" * 80)
+        print(f"\nResults will be saved to: {results_dir}/")
 
-    print(f"\n  Average similarity (Official <-> Re-translation): {avg_inter_sim:.4f}")
-    if avg_inter_sim > 0.85:
-        print("  -> Both translations are generally consistent")
-    elif avg_inter_sim > 0.70:
-        print("  -> Both translations have some differences but share main semantics")
-    else:
-        print(
-            "  -> Both translations differ significantly, strategies may be clearly different"
-        )
+        # 1. Load model
+        print("\n[1/5] Loading model...")
+        config.print_model_info()
+        print()
 
-    if "official_localization" in results[0]:
-        avg_local_diff = np.mean([r["localization_difference"] for r in results])
-        if avg_local_diff > 0.05:
+        model = config.load_model(
+            device="cpu"
+        )  # Use CPU, change to 'cuda' if GPU available
+
+        # 2. Load data
+        print("\n[2/5] Loading translation data...")
+        # Analyze 100 samples first, remove sample_size parameter to analyze all
+        triples = load_translation_data("cleaned.json", sample_size=100)
+        chinese_anchors = create_chinese_anchors()
+
+        print(f"  Loaded {len(triples)} translation pairs")
+        print(f"  Loaded {len(chinese_anchors)} Chinese common expression anchors")
+
+        # 3. Analyze translation pairs
+        print("\n[3/5] Analyzing translation pairs...")
+        print("\n" + "▼" * 80)
+
+        results = []
+        display_count = 10  # Only show first 10 detailed results
+
+        for i, triple in enumerate(triples, 1):
+            # Analyze a single triple
+            result = analyze_translation_triple(model, triple, chinese_anchors)
+            results.append(result)
+
+            # Only show first few detailed results
+            if i <= display_count:
+                print_triple_analysis(triple, result, index=i)
+
+            # Progress indicator
+            if i % 20 == 0:
+                print(f"\n  Progress: {i}/{len(triples)}")
+
+        if len(triples) > display_count:
             print(
-                f"\n  Official translation has higher localization degree (diff: {avg_local_diff:+.4f})"
+                f"\n  ... Omitting {len(triples) - display_count} detailed results ..."
             )
-            print("  -> Official translation is closer to common Chinese expressions")
-        elif avg_local_diff < -0.05:
+
+        print("\n" + "▲" * 80)
+
+        # 4. Batch statistical summary
+        print("\n[4/5] Generating statistical summary...")
+        print_batch_summary(triples, results)
+
+        # Statistics by length category
+        categorize_by_length(triples, results)
+
+        # 5. Key findings
+        print(f"\n[5/5] Key Findings and Conclusions")
+        print(f"{'=' * 80}")
+
+        avg_strategy_diff = np.mean([r["strategy_difference"] for r in results])
+        avg_inter_sim = np.mean([r["inter_translation_similarity"] for r in results])
+
+        print("\nGame Localization Translation Analysis Conclusions:")
+
+        if avg_strategy_diff > 0.05:
             print(
-                f"\n  Re-translation has higher localization degree (diff: {avg_local_diff:+.4f})"
+                f"  Re-translation is overall closer to English source (diff: {avg_strategy_diff:+.4f})"
             )
-            print("  -> Re-translation is closer to common Chinese expressions")
+            print(
+                "  -> Re-translation may use more foreignization strategy (more literal)"
+            )
+        elif avg_strategy_diff < -0.05:
+            print(
+                f"  Official translation is overall closer to English source (diff: {avg_strategy_diff:+.4f})"
+            )
+            print(
+                "  -> Official translation may focus more on semantic accuracy than localization"
+            )
+        else:
+            print(
+                f"  Both strategies have similar semantic similarity (diff: {avg_strategy_diff:+.4f})"
+            )
 
-    print("\nResearch Recommendations:")
-    print(
-        "  1. Game localization needs to balance semantic accuracy and localized expression"
-    )
-    print(
-        "  2. Further analyze translation strategies for specific text types (dialogue, narration, poetry)"
-    )
-    print(
-        "  3. Translation strategies for proper nouns (character names, place names) deserve separate study"
-    )
-    print("  4. Increasing sample size can improve statistical reliability")
+        print(
+            f"\n  Average similarity (Official <-> Re-translation): {avg_inter_sim:.4f}"
+        )
+        if avg_inter_sim > 0.85:
+            print("  -> Both translations are generally consistent")
+        elif avg_inter_sim > 0.70:
+            print(
+                "  -> Both translations have some differences but share main semantics"
+            )
+        else:
+            print(
+                "  -> Both translations differ significantly, strategies may be clearly different"
+            )
 
-    print("\n" + "=" * 80)
-    print("Analysis completed!")
-    print("=" * 80)
+        if "official_localization" in results[0]:
+            avg_local_diff = np.mean([r["localization_difference"] for r in results])
+            if avg_local_diff > 0.05:
+                print(
+                    f"\n  Official translation has higher localization degree (diff: {avg_local_diff:+.4f})"
+                )
+                print(
+                    "  -> Official translation is closer to common Chinese expressions"
+                )
+            elif avg_local_diff < -0.05:
+                print(
+                    f"\n  Re-translation has higher localization degree (diff: {avg_local_diff:+.4f})"
+                )
+                print("  -> Re-translation is closer to common Chinese expressions")
 
-    # Suggestions for extending analysis
-    print("\nExtended Analysis Suggestions:")
-    print(
-        "  1. Modify sample_size parameter to analyze more data (e.g., 500, 1000 records)"
-    )
-    print("  2. Use grep tool to filter specific types of texts for analysis")
-    print("  3. Combine with 04_text_clustering_visualization.py for visualization")
-    print()
+        print("\nResearch Recommendations:")
+        print(
+            "  1. Game localization needs to balance semantic accuracy and localized expression"
+        )
+        print(
+            "  2. Further analyze translation strategies for specific text types (dialogue, narration, poetry)"
+        )
+        print(
+            "  3. Translation strategies for proper nouns (character names, place names) deserve separate study"
+        )
+        print("  4. Increasing sample size can improve statistical reliability")
+
+        print("\n" + "=" * 80)
+        print("Analysis completed!")
+        print("=" * 80)
+
+        # Suggestions for extending analysis
+        print("\nExtended Analysis Suggestions:")
+        print(
+            "  1. Modify sample_size parameter to analyze more data (e.g., 500, 1000 records)"
+        )
+        print("  2. Use grep tool to filter specific types of texts for analysis")
+        print("  3. Combine with 04_text_clustering_visualization.py for visualization")
+        print()
+
+        # Save results to JSON file
+        from save_results_helper import save_analysis_results
+
+        json_file = os.path.join(results_dir, "analysis_results.json")
+        save_analysis_results(
+            results, triples, output_file=json_file, include_texts=True
+        )
+
+        print(f"\n✓ All results saved to directory: {results_dir}/")
+        print(f"  - analysis_output.txt (full console output)")
+        print(f"  - analysis_results.json (structured data)")
+
+    except Exception as e:
+        import builtins
+
+        builtins.print = original_print
+        print(f"\n❌ Error occurred: {e}", file=log_file)
+        log_file.close()
+        raise
+    finally:
+        # Restore original print
+        import builtins
+
+        builtins.print = original_print
+        log_file.close()
 
 
 if __name__ == "__main__":

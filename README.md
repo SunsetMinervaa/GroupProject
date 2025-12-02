@@ -11,6 +11,7 @@ A comprehensive project for analyzing translation strategies in game localizatio
 - [Analysis Guide](#analysis-guide)
 - [Visualization Guide](#visualization-guide)
 - [Translation Style Classifier](#translation-style-classifier)
+- [Saving and Recording Results](#saving-and-recording-results)
 - [Troubleshooting](#troubleshooting)
 - [Changelog](#changelog)
 - [Development Notes](#development-notes)
@@ -423,6 +424,202 @@ With 2000 training samples:
 
 - `style_classifier.joblib`: Saved classifier (can be shared)
 - Requires: `config.py`, Qwen3-Embedding model, dependencies
+
+---
+
+## Saving and Recording Results
+
+This section provides multiple methods to save and record your analysis results.
+
+### Method 1: Command Line Output Redirection (Simplest)
+
+**Save all console output to a file**:
+
+**Windows (PowerShell)**:
+```powershell
+python 02_similarity_calculation_2.py > results.txt 2>&1
+```
+
+**Windows (CMD)**:
+```cmd
+python 02_similarity_calculation_2.py > results.txt 2>&1
+```
+
+**Linux/Mac**:
+```bash
+python 02_similarity_calculation_2.py > results.txt 2>&1
+```
+
+**With timestamp**:
+```bash
+python 02_similarity_calculation_2.py > results_$(date +%Y%m%d_%H%M%S).txt 2>&1
+```
+
+**View output while saving**:
+
+**Windows (PowerShell)**:
+```powershell
+python 02_similarity_calculation_2.py | Tee-Object -FilePath results.txt
+```
+
+**Linux/Mac**:
+```bash
+python 02_similarity_calculation_2.py | tee results.txt
+```
+
+### Method 2: Using the Results Helper Module
+
+The project includes `save_results_helper.py` with utility functions for saving results.
+
+#### For Similarity Analysis
+
+Add to the end of `main()` function in `02_similarity_calculation_2.py`:
+
+```python
+from save_results_helper import save_analysis_results
+
+# At the end of main(), before interactive mode:
+save_analysis_results(results, triples, output_file="similarity_results.json")
+```
+
+#### For Classification
+
+Add after evaluation in `05_style_classifier.py`:
+
+```python
+from save_results_helper import save_classification_report
+
+# After evaluate_classifier():
+y_pred = clf.predict(X_test_emb)
+save_classification_report(y_test, y_pred, output_file="classification_report.txt")
+```
+
+#### For Embeddings
+
+Save embeddings to avoid recomputing:
+
+```python
+from save_results_helper import save_embeddings, load_embeddings
+
+# After generating embeddings:
+save_embeddings(X_train_emb, X_train_texts, y_train, output_file="train_embeddings.npz")
+
+# Later, load them:
+train_data = load_embeddings("train_embeddings.npz")
+X_train_emb = train_data["embeddings"]
+X_train_texts = train_data["texts"]
+y_train = train_data["labels"]
+```
+
+### Method 3: Create Timestamped Results Directory
+
+Organize all results in a timestamped folder:
+
+```python
+from save_results_helper import create_results_directory
+import os
+
+# Create results directory
+results_dir = create_results_directory("analysis_results")
+
+# Save all outputs there
+save_analysis_results(results, triples, 
+                     output_file=os.path.join(results_dir, "similarity_results.json"))
+save_classification_report(y_test, y_pred,
+                          output_file=os.path.join(results_dir, "classification_report.txt"))
+
+# Copy visualization files
+import shutil
+shutil.copy("translation_comparison_2d.html", results_dir)
+shutil.copy("translation_comparison_3d.html", results_dir)
+```
+
+### Method 4: Python Logging Module
+
+For more advanced logging:
+
+```python
+import logging
+from datetime import datetime
+
+# Setup logging
+log_filename = f"analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(log_filename, encoding='utf-8'),
+        logging.StreamHandler()  # Also print to console
+    ]
+)
+
+# Use in your code
+logging.info("Starting analysis...")
+logging.info(f"Loaded {len(triples)} translation pairs")
+```
+
+### Method 5: Save Specific Metrics to CSV
+
+For statistical analysis in Excel/Python:
+
+```python
+import pandas as pd
+
+# Convert results to DataFrame
+df = pd.DataFrame(results)
+
+# Add text information
+df['english_source'] = [t['original_en_text'] for t in triples]
+df['official_translation'] = [t['original_zh_text'] for t in triples]
+df['re_translation'] = [t['translated_text'] for t in triples]
+
+# Save to CSV
+df.to_csv('analysis_results.csv', index=False, encoding='utf-8-sig')
+print("✓ Results saved to analysis_results.csv")
+```
+
+### Recommended Workflow
+
+**For Similarity Analysis**:
+1. Run with output redirection: `python 02_similarity_calculation_2.py > results.txt 2>&1`
+2. Add result saving to script: `save_analysis_results(results, triples, "similarity_results.json")`
+3. Results include: Console output (text), structured JSON data, summary statistics
+
+**For Classification**:
+1. Run classifier: `python 05_style_classifier.py > classifier_training.txt 2>&1`
+2. Results automatically saved: `style_classifier.joblib` (trained model)
+
+**For Visualization**:
+1. HTML files automatically saved: `translation_comparison_2d.html`, `translation_comparison_3d.html`
+2. Copy to results directory: `mkdir results_$(date +%Y%m%d_%H%M%S) && cp *.html results_*/`
+
+### File Formats Explained
+
+| Format | Best For | Contains | Use Case |
+|--------|----------|----------|----------|
+| **JSON** | Structured data | All metrics, summary statistics, full texts | Further analysis, data sharing |
+| **TXT** | Human-readable | Formatted output, progress messages | Documentation, presentations |
+| **CSV** | Excel analysis | Tabular data, one row per sample | Statistical analysis, plotting |
+| **NPZ** | Embeddings | Numpy arrays, texts, labels | Avoid recomputing, share vectors |
+
+### Quick Reference
+
+| Task | Command/Code |
+|------|-------------|
+| Save console output | `python script.py > output.txt 2>&1` |
+| Save analysis results | `save_analysis_results(results, triples, "results.json")` |
+| Save classification report | `save_classification_report(y_test, y_pred, "report.txt")` |
+| Save embeddings | `save_embeddings(embeddings, texts, labels, "embeddings.npz")` |
+| Create results dir | `create_results_directory("my_analysis")` |
+
+### Tips
+
+1. **Always use timestamps** in filenames to avoid overwriting
+2. **Save both structured (JSON) and human-readable (TXT) formats**
+3. **Keep console output** for debugging and progress tracking
+4. **Save embeddings** if you'll re-run analysis with different parameters
+5. **Create results directories** to keep experiments organized
+6. **Document parameters** used in each run (sample_size, batch_size, etc.)
 
 ---
 

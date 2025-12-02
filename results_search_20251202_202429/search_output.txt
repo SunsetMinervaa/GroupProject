@@ -1,0 +1,29 @@
+Initializing searcher...
+Note: Precomputing embeddings for the first 100 translation triples may take 30–60 seconds.
+
+Results will be saved to: results_search_20251202_202429/
+================================================================================
+Optimized Semantic Search for Translation Triples
+================================================================================
+
+Loading Qwen3-Embedding model...
+PyTorch version: 2.5.1+cu121
+CUDA available: True
+CUDA version: 12.1
+GPU device: NVIDIA GeForce RTX 4060 Laptop GPU
+GPU memory: 8.00 GB
+
+Using device: cuda
+🚀 Using ModelScope mirror to download model: Qwen/Qwen3-Embedding-4B
+   (Faster for users in China, usually completes in 1-3 minutes)
+Downloading Model from https://www.modelscope.cn to directory: C:\Users\34146\.cache\modelscope\hub\models\Qwen\Qwen3-Embedding-4B
+✅ Model download complete: C:\Users\34146\.cache\modelscope\hub\models\Qwen\Qwen3-Embedding-4B
+✅ Model loaded successfully!
+
+Loading translation data from: cleaned.json...
+✓ Data loaded! Using the first 100 translation triples for analysis.
+   (There are 5394 triples in total; only the first 100 are used for speed.)
+Prepared 300 texts for search...
+
+Precomputing embeddings for 300 texts...
+Note: This takes about 30–60 seconds on CPU or 5–10 seconds on GPU.

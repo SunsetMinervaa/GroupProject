@@ -22,6 +22,10 @@ import plotly.graph_objects as go
 import plotly.express as px
 from typing import List, Tuple
 import config
+import os
+import shutil
+from datetime import datetime
+import sys
 
 
 class TripleTranslationVisualizer:
@@ -461,69 +465,133 @@ class TripleTranslationVisualizer:
 
 def main():
     """Main entry point."""
-    # 1. Initialize visualizer
-    visualizer = TripleTranslationVisualizer()
+    # Create results directory with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    results_dir = f"results_visualization_{timestamp}"
+    os.makedirs(results_dir, exist_ok=True)
 
-    # 2. Load data (sample 30 triples, 90 texts)
-    visualizer.load_data("cleaned.json", sample_size=30)
+    # Setup file to save all output
+    output_file = os.path.join(results_dir, "visualization_output.txt")
+    log_file = open(output_file, "w", encoding="utf-8")
 
-    # 3. Generate embeddings
-    visualizer.generate_embeddings()
+    # Custom print function that writes to both console and file
+    original_print = print
 
-    # 4. 2D visualization
-    print("\n" + "▼" * 80)
-    print("Part 1: 2D Visualization")
-    print("▼" * 80)
+    def print_and_log(*args, **kwargs):
+        # Remove 'file' from kwargs if present, we'll set it explicitly
+        kwargs_console = {k: v for k, v in kwargs.items() if k != "file"}
+        kwargs_file = kwargs_console.copy()
+        kwargs_file["file"] = log_file
 
-    visualizer.reduce_dimensions_2d(perplexity=30)
-    visualizer.visualize_2d("translation_comparison_2d.html")
+        original_print(*args, **kwargs_console)
+        original_print(*args, **kwargs_file)
+        log_file.flush()
 
-    # Compute distances in 2D space
-    stats_2d = visualizer.calculate_distances()
+    # Replace print temporarily
+    import builtins
 
-    # 5. 3D visualization
-    print("\n" + "▼" * 80)
-    print("Part 2: 3D Visualization")
-    print("▼" * 80)
+    builtins.print = print_and_log
 
-    visualizer.reduce_dimensions_3d(perplexity=30)
-    visualizer.visualize_3d("translation_comparison_3d.html")
+    try:
+        # 1. Initialize visualizer
+        visualizer = TripleTranslationVisualizer()
 
-    # Compute distances in 3D space
-    stats_3d = visualizer.calculate_distances()
+        # 2. Load data (sample 30 triples, 90 texts)
+        visualizer.load_data("cleaned.json", sample_size=30)
+        print(f"\nResults will be saved to: {results_dir}/")
 
-    # 6. Summary
-    print("\n" + "=" * 80)
-    print("✓ Analysis completed!")
-    print("=" * 80)
+        # 3. Generate embeddings
+        visualizer.generate_embeddings()
 
-    print("\nGenerated files:")
-    print("  1. translation_comparison_2d.html - 2D scatter plot")
-    print("  2. translation_comparison_3d.html - 3D scatter plot (rotatable)")
+        # 4. 2D visualization
+        print("\n" + "▼" * 80)
+        print("Part 1: 2D Visualization")
+        print("▼" * 80)
 
-    print("\nHow to use:")
-    print("  - Open the HTML files in a browser.")
-    print("  - Hover over points to see the underlying text.")
-    print("  - In the 3D plot, drag to rotate and scroll to zoom.")
-    print("  - Click legend entries to hide/show specific text types.")
+        visualizer.reduce_dimensions_2d(perplexity=30)
+        html_2d = os.path.join(results_dir, "translation_comparison_2d.html")
+        visualizer.visualize_2d(html_2d)
 
-    print("\nWhat to observe:")
-    print("  - Green circles = English source")
-    print("  - Blue squares  = Domesticated translations (official Chinese)")
-    print("  - Red diamonds  = Foreignized translations (re-translations)")
-    print("  - Gray dashed triangles = boundaries of each triple")
-    print("  - Which color (blue/red) tends to be closer to green.")
-    print("  - Flatter triangles indicate smaller differences between strategies.")
+        # Compute distances in 2D space
+        stats_2d = visualizer.calculate_distances()
 
-    print("\nResearch suggestions:")
-    print("  1. Check whether the three text types form distinct clusters.")
-    print("  2. Identify translation triples that are particularly close or far apart.")
-    print("  3. Analyze spatial patterns of domestication vs foreignization.")
-    print(
-        "  4. Combine visualization with textual analysis to interpret distance differences."
-    )
+        # 5. 3D visualization
+        print("\n" + "▼" * 80)
+        print("Part 2: 3D Visualization")
+        print("▼" * 80)
 
-    print("\n" + "=" * 80)
+        visualizer.reduce_dimensions_3d(perplexity=30)
+        html_3d = os.path.join(results_dir, "translation_comparison_3d.html")
+        visualizer.visualize_3d(html_3d)
+
+        # Compute distances in 3D space
+        stats_3d = visualizer.calculate_distances()
+
+        # Save statistics to JSON
+        stats_file = os.path.join(results_dir, "distance_statistics.json")
+        with open(stats_file, "w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    "2d_statistics": {
+                        "domesticated_avg": float(stats_2d["domesticated_avg"]),
+                        "foreignized_avg": float(stats_2d["foreignized_avg"]),
+                        "difference": float(stats_2d["difference"]),
+                    },
+                    "3d_statistics": {
+                        "domesticated_avg": float(stats_3d["domesticated_avg"]),
+                        "foreignized_avg": float(stats_3d["foreignized_avg"]),
+                        "difference": float(stats_3d["difference"]),
+                    },
+                },
+                f,
+                indent=2,
+            )
+
+        # 6. Summary
+        print("\n" + "=" * 80)
+        print("✓ Analysis completed!")
+        print("=" * 80)
+
+        print("\nGenerated files:")
+        print("  1. translation_comparison_2d.html - 2D scatter plot")
+        print("  2. translation_comparison_3d.html - 3D scatter plot (rotatable)")
+        print("  3. distance_statistics.json - Distance analysis results")
+
+        print("\nHow to use:")
+        print("  - Open the HTML files in a browser.")
+        print("  - Hover over points to see the underlying text.")
+        print("  - In the 3D plot, drag to rotate and scroll to zoom.")
+        print("  - Click legend entries to hide/show specific text types.")
+
+        print("\nWhat to observe:")
+        print("  - Green circles = English source")
+        print("  - Blue squares  = Domesticated translations (official Chinese)")
+        print("  - Red diamonds  = Foreignized translations (re-translations)")
+        print("  - Gray dashed triangles = boundaries of each triple")
+        print("  - Which color (blue/red) tends to be closer to green.")
+        print("  - Flatter triangles indicate smaller differences between strategies.")
+
+        print("\nResearch suggestions:")
+        print("  1. Check whether the three text types form distinct clusters.")
+        print(
+            "  2. Identify translation triples that are particularly close or far apart."
+        )
+        print("  3. Analyze spatial patterns of domestication vs foreignization.")
+        print(
+            "  4. Combine visualization with textual analysis to interpret distance differences."
+        )
+
+        print("\n" + "=" * 80)
+        print(f"\n✓ All results saved to directory: {results_dir}/")
+        print(f"  - visualization_output.txt (full console output)")
+        print(f"  - translation_comparison_2d.html (2D visualization)")
+        print(f"  - translation_comparison_3d.html (3D visualization)")
+        print(f"  - distance_statistics.json (distance metrics)")
+
+    finally:
+        # Restore original print
+        builtins.print = original_print
+        log_file.close()
 
 
 if __name__ == "__main__":

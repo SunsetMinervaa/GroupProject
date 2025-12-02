@@ -18,6 +18,8 @@ Pipeline:
 
 import json
 import os
+import sys
+from datetime import datetime
 from typing import List, Tuple
 
 import numpy as np
@@ -173,75 +175,123 @@ def interactive_classification(model, clf: LogisticRegression) -> None:
 
 
 def main():
-    print("=" * 80)
-    print("Translation Style Classifier based on Qwen3-Embedding")
-    print("Task: distinguish 'Domesticated' vs 'Foreignized' translations")
-    print("=" * 80)
+    # Create results directory with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    results_dir = f"results_classifier_{timestamp}"
+    os.makedirs(results_dir, exist_ok=True)
+    
+    # Setup file to save all output
+    output_file = os.path.join(results_dir, "classifier_output.txt")
+    log_file = open(output_file, "w", encoding="utf-8")
+    
+    # Custom print function that writes to both console and file
+    original_print = print
+    def print_and_log(*args, **kwargs):
+        # Remove 'file' from kwargs if present, we'll set it explicitly
+        kwargs_console = {k: v for k, v in kwargs.items() if k != 'file'}
+        kwargs_file = kwargs_console.copy()
+        kwargs_file['file'] = log_file
+        
+        original_print(*args, **kwargs_console)
+        original_print(*args, **kwargs_file)
+        log_file.flush()
+    
+    # Replace print temporarily
+    import builtins
+    builtins.print = print_and_log
+    
+    try:
+        print("=" * 80)
+        print("Translation Style Classifier based on Qwen3-Embedding")
+        print("Task: distinguish 'Domesticated' vs 'Foreignized' translations")
+        print("=" * 80)
+        print(f"\nResults will be saved to: {results_dir}/")
 
-    # 1. Load data
-    texts, labels = load_translation_pairs("cleaned.json")
+        # 1. Load data
+        texts, labels = load_translation_pairs("cleaned.json")
 
-    # Use 2000 samples for training
-    texts = texts[:2000]
-    labels = labels[:2000]
+        # Use 2000 samples for training
+        texts = texts[:2000]
+        labels = labels[:2000]
 
-    # Split into train / test
-    X_train_texts, X_test_texts, y_train, y_test = train_test_split(
-        texts,
-        labels,
-        test_size=0.2,
-        random_state=42,
-        stratify=labels,
-    )
-    print(
-        f"\nDataset split: train={len(X_train_texts)} samples, "
-        f"test={len(X_test_texts)} samples"
-    )
+        # Split into train / test
+        X_train_texts, X_test_texts, y_train, y_test = train_test_split(
+            texts,
+            labels,
+            test_size=0.2,
+            random_state=42,
+            stratify=labels,
+        )
+        print(
+            f"\nDataset split: train={len(X_train_texts)} samples, "
+            f"test={len(X_test_texts)} samples"
+        )
 
-    # 2. Load embedding model and generate vectors
-    print("\nLoading Qwen3-Embedding model...")
-    config.print_model_info()
+        # 2. Load embedding model and generate vectors
+        print("\nLoading Qwen3-Embedding model...")
+        config.print_model_info()
 
-    # Force CPU (GPU code commented out due to performance issues)
-    device = "cpu"
-    print(f"Using device: {device}")
+        # Force CPU (GPU code commented out due to performance issues)
+        device = "cpu"
+        print(f"Using device: {device}")
 
-    # # GPU auto-detection (commented out)
-    # device = "cuda" if torch.cuda.is_available() else "cpu"
-    # if device == "cuda":
-    #     print(f"\nGPU detected: {torch.cuda.get_device_name(0)}")
-    #     print(
-    #         f"GPU memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.2f} GB"
-    #     )
-    # print(f"Using device: {device}")
+        # # GPU auto-detection (commented out)
+        # device = "cuda" if torch.cuda.is_available() else "cpu"
+        # if device == "cuda":
+        #     print(f"\nGPU detected: {torch.cuda.get_device_name(0)}")
+        #     print(
+        #         f"GPU memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.2f} GB"
+        #     )
+        # print(f"Using device: {device}")
 
-    model = config.load_model(device=device)
+        model = config.load_model(device=device)
 
-    # # GPU verification and warm-up (commented out)
-    # if device == "cuda":
-    #     print("\nVerifying GPU usage...")
-    #     # ... GPU code ...
+        # # GPU verification and warm-up (commented out)
+        # if device == "cuda":
+        #     print("\nVerifying GPU usage...")
+        #     # ... GPU code ...
 
-    batch_size = 16
-    print(f"\nUsing batch_size={batch_size} for encoding")
+        batch_size = 16
+        print(f"\nUsing batch_size={batch_size} for encoding")
 
-    X_train_emb = encode_texts(model, X_train_texts, batch_size=batch_size)
-    X_test_emb = encode_texts(model, X_test_texts, batch_size=batch_size)
+        X_train_emb = encode_texts(model, X_train_texts, batch_size=batch_size)
+        X_test_emb = encode_texts(model, X_test_texts, batch_size=batch_size)
 
-    # 3. Train classifier
-    clf = train_classifier(X_train_emb, y_train)
+        # 3. Train classifier
+        clf = train_classifier(X_train_emb, y_train)
 
-    # 4. Evaluate classifier
-    evaluate_classifier(clf, X_test_emb, y_test)
+        # 4. Evaluate classifier
+        evaluate_classifier(clf, X_test_emb, y_test)
 
-    # 5. Save trained classifier
-    model_save_path = "style_classifier.joblib"
-    print(f"\n[5/5] Saving classifier to: {model_save_path} ...")
-    joblib.dump(clf, model_save_path)
-    print(f"  ✓ Classifier saved successfully!")
+        # 5. Save trained classifier
+        model_save_path = os.path.join(results_dir, "style_classifier.joblib")
+        print(f"\n[5/5] Saving classifier to: {model_save_path} ...")
+        joblib.dump(clf, model_save_path)
+        print(f"  ✓ Classifier saved successfully!")
+        
+        # Save classification report
+        from save_results_helper import save_classification_report
+        y_pred = clf.predict(X_test_emb)
+        report_file = os.path.join(results_dir, "classification_report.txt")
+        save_classification_report(y_test, y_pred, output_file=report_file)
 
-    # 6. Enter interactive mode
-    interactive_classification(model, clf)
+        print(f"\n✓ All results saved to directory: {results_dir}/")
+        print(f"  - classifier_output.txt (full console output)")
+        print(f"  - style_classifier.joblib (trained model)")
+        print(f"  - classification_report.txt (evaluation metrics)")
+
+        # 6. Enter interactive mode
+        interactive_classification(model, clf)
+        
+    finally:
+        # Restore original print
+        builtins.print = original_print
+        log_file.close()
+        
+    finally:
+        # Restore original print
+        builtins.print = original_print
+        log_file.close()
 
 
 if __name__ == "__main__":

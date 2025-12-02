@@ -11,6 +11,9 @@ from sentence_transformers import SentenceTransformer, util
 import config
 from typing import List, Dict
 import torch
+import os
+from datetime import datetime
+import sys
 
 
 class TranslationTripleSearcher:
@@ -172,45 +175,99 @@ class TranslationTripleSearcher:
 
 def main():
     """Main entry point."""
-    # 1. Initialize searcher (precompute embeddings)
-    print("Initializing searcher...")
-    print(
-        "Note: Precomputing embeddings for the first 100 translation triples may take 30–60 seconds."
-    )
-    searcher = TranslationTripleSearcher()
+    # Create results directory with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    results_dir = f"results_search_{timestamp}"
+    os.makedirs(results_dir, exist_ok=True)
 
-    # 2. Interactive search (using precomputed embeddings, very fast)
-    print("\n" + "=" * 80)
-    print("Interactive Search (type 'quit' or 'exit' to exit)")
-    print("Note: Search is very fast (<1 second), based on precomputed embeddings.")
-    print("=" * 80)
+    # Setup file to save all output
+    output_file = os.path.join(results_dir, "search_output.txt")
+    log_file = open(output_file, "w", encoding="utf-8")
 
-    while True:
-        try:
-            keyword = input("\nPlease enter a search keyword: ").strip()
+    # Custom print function that writes to both console and file
+    original_print = print
 
-            if keyword.lower() in ["quit", "exit", "q"]:
-                print("Thank you for using the tool! Bye!")
+    def print_and_log(*args, **kwargs):
+        # Remove 'file' from kwargs if present, we'll set it explicitly
+        kwargs_console = {k: v for k, v in kwargs.items() if k != "file"}
+        kwargs_file = kwargs_console.copy()
+        kwargs_file["file"] = log_file
+
+        original_print(*args, **kwargs_console)
+        original_print(*args, **kwargs_file)
+        log_file.flush()
+
+    # Replace print temporarily
+    import builtins
+
+    builtins.print = print_and_log
+
+    try:
+        # 1. Initialize searcher (precompute embeddings)
+        print("Initializing searcher...")
+        print(
+            "Note: Precomputing embeddings for the first 100 translation triples may take 30–60 seconds."
+        )
+        print(f"\nResults will be saved to: {results_dir}/")
+        searcher = TranslationTripleSearcher()
+
+        # 2. Interactive search (using precomputed embeddings, very fast)
+        print("\n" + "=" * 80)
+        print("Interactive Search (type 'quit' or 'exit' to exit)")
+        print("Note: Search is very fast (<1 second), based on precomputed embeddings.")
+        print("=" * 80)
+
+        search_history = []  # Store search queries and results
+
+        while True:
+            try:
+                keyword = input("\nPlease enter a search keyword: ").strip()
+
+                if keyword.lower() in ["quit", "exit", "q"]:
+                    print("Thank you for using the tool! Bye!")
+                    break
+
+                if not keyword:
+                    print("Keyword cannot be empty, please try again.")
+                    continue
+
+                # Get similarity threshold (optional)
+                threshold_str = input(
+                    "Please enter similarity threshold (default 0.5): "
+                ).strip()
+                threshold = 0.5 if not threshold_str else float(threshold_str)
+
+                # Perform search (using precomputed embeddings)
+                searcher.search_by_keyword(keyword, similarity_threshold=threshold)
+
+                # Record search in history
+                search_history.append(
+                    {
+                        "keyword": keyword,
+                        "threshold": threshold,
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                )
+
+            except KeyboardInterrupt:
+                print("\n\nProgram interrupted, thank you for using the tool!")
                 break
+            except Exception as e:
+                print(f"Error: {e}")
 
-            if not keyword:
-                print("Keyword cannot be empty, please try again.")
-                continue
+        # Save search history
+        history_file = os.path.join(results_dir, "search_history.json")
+        with open(history_file, "w", encoding="utf-8") as f:
+            json.dump(search_history, f, ensure_ascii=False, indent=2)
 
-            # Get similarity threshold (optional)
-            threshold_str = input(
-                "Please enter similarity threshold (default 0.5): "
-            ).strip()
-            threshold = 0.5 if not threshold_str else float(threshold_str)
+        print(f"\n✓ All results saved to directory: {results_dir}/")
+        print(f"  - search_output.txt (full console output)")
+        print(f"  - search_history.json (search queries and timestamps)")
 
-            # Perform search (using precomputed embeddings)
-            searcher.search_by_keyword(keyword, similarity_threshold=threshold)
-
-        except KeyboardInterrupt:
-            print("\n\nProgram interrupted, thank you for using the tool!")
-            break
-        except Exception as e:
-            print(f"Error: {e}")
+    finally:
+        # Restore original print
+        builtins.print = original_print
+        log_file.close()
 
 
 if __name__ == "__main__":
